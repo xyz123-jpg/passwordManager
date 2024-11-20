@@ -1,1 +1,6 @@
-# passwordManager
+# passwordManager![admin_edit_user](https://github.com/user-attachments/assets/7953e65d-f11c-486f-a6ae-0697a44f9ad7)
+![admin dashboard](https://github.com/user-attachments/assets/5e9dd263-ab99-4886-a7aa-e3fc9674e33a)
+![edit](https://github.com/user-attachments/assets/50ff112b-edad-4cd3-8ed7-b41b8d67b099)
+![dashboard](https://github.com/user-attachments/assets/4e04da46-600f-4b8c-8383-415e378bcabd)
+![login](https://github.com/user-attachments/assets/e3c9e8e6-9200-4081-a123-b2f5aa356cdf)
+![db](https://github.com/user-attachments/assets/1a123c2f-f389-4cff-b17f-78a714d70d87)
