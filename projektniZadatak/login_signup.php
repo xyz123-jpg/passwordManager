@@ -8,7 +8,10 @@ if (isset($_GET['action'])) {
     } elseif ($action === 'signup') {
         header("Location: signup.php");
         exit();
-    } else {
+    } elseif ($action === "admin") {
+        header("Location: admin_login.php");
+        exit();
+    }else {
         echo "Invalid action.";
     }
 }

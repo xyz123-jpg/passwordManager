@@ -1,8 +1,7 @@
 <?php
-// Encryption and decryption function
-include 'db.php';
-define('ENCRYPTION_KEY', 'your-secret-key'); // Make sure to store this key securely
 
+include 'db.php';
+define('ENCRYPTION_KEY', 'your-secret-key');
 function encrypt($data) {
     return openssl_encrypt($data, 'aes-256-cbc', ENCRYPTION_KEY, 0, '1234567890123456');
 }
@@ -18,9 +17,9 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-// Handle logout
+
 if (isset($_POST['logout'])) {
-    // Destroy the session and redirect to index.php
+
     session_destroy();
     header("Location: index.php");
     exit();
@@ -28,24 +27,24 @@ if (isset($_POST['logout'])) {
 
 $user_id = $_SESSION["user_id"];
 
-// Check if the form is submitted (POST method)
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["purpose"]) && isset($_POST["password"])) {
-    // Get the form data
-    $purpose = $_POST["purpose"];
-    $password = encrypt($_POST["password"]); // Hash the password
 
-    // Insert password into the database
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["purpose"]) && isset($_POST["password"])) {
+
+    $purpose = $_POST["purpose"];
+    $password = encrypt($_POST["password"]);
+
+
     $stmt = $conn->prepare("INSERT INTO passwords (user_id, purpose, password) VALUES (?, ?, ?)");
     $stmt->bind_param("iss", $user_id, $purpose, $password);
     $stmt->execute();
     
-    // Redirect to the same page to avoid form resubmission on page refresh
+
     header("Location: dashboard.php");
     exit();
 }
 
 
-// Fetch stored encrypted passwords
+
 $result = $conn->query("SELECT id, purpose, password FROM passwords WHERE user_id = $user_id");
 ?>
 
@@ -58,7 +57,7 @@ $result = $conn->query("SELECT id, purpose, password FROM passwords WHERE user_i
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        /* Custom CSS for logout button */
+
         .logout-btn {
             position: fixed;
             top: 10px;
@@ -108,13 +107,13 @@ $result = $conn->query("SELECT id, purpose, password FROM passwords WHERE user_i
 <body>
     <div class="container mt-5">
         <h2 class="text-center mb-4">Your Saved Passwords</h2>
-        <!-- Logout Button -->
+
         <form action="dashboard.php" method="post">
             <button type="submit" name="logout" class="logout-btn">Log Out</button>
         </form>
         <form action="dashboard.php" method="post" class="mb-4">
     <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-4"> <!-- Adjust width with col-md-6 and col-lg-4 -->
+        <div class="col-md-6 col-lg-4"> 
             <div class="mb-3">
                 <label for="purpose" class="form-label">Purpose</label>
                 <input type="text" class="form-control" id="purpose" name="purpose" required>
@@ -122,7 +121,13 @@ $result = $conn->query("SELECT id, purpose, password FROM passwords WHERE user_i
             <div class="mb-3">
                 <label for="password" class="form-label">Password</label>
                 <input type="password" class="form-control" id="password" name="password" required>
+                <div class="progress mt-2">
+                    <div id="strength-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <small id="password-strength-text" class="form-text text-muted"></small>
+                <small id="time-to-crack" class="form-text text-muted"></small>
             </div>
+
             <button type="submit" class="btn btn-primary w-100">Add Password</button>
         </div>
     </div>
@@ -143,15 +148,15 @@ $result = $conn->query("SELECT id, purpose, password FROM passwords WHERE user_i
                     <tr>
                         <td><?php echo htmlspecialchars($row["purpose"]); ?></td>
                         <td class="password-cell">
-                            <!-- Display password as dots -->
+
                             <span class="password" id="password-<?php echo $row['id']; ?>">
                                 <?php echo str_repeat('•', strlen($row['password'])); ?>
                             </span>
-                            <!-- Decrypt and show the actual password -->
+
                             <span class="password" id="password-visible-<?php echo $row['id']; ?>" style="display:none">
                                 <?php echo htmlspecialchars(decrypt($row['password'])); ?>
                             </span>
-                            <!-- Eye icon to toggle password visibility -->
+
                             <i class="bi bi-eye-slash password-toggle-icon" id="toggle-<?php echo $row['id']; ?>"></i>
                         </td>
                         <td>
@@ -168,14 +173,14 @@ $result = $conn->query("SELECT id, purpose, password FROM passwords WHERE user_i
     <script>
         document.querySelectorAll('.password-toggle-icon').forEach(function (toggleIcon) {
             toggleIcon.addEventListener('click', function () {
-                // Get the row ID from the element's ID attribute
+
                 const passwordId = this.id.split('-')[1];
 
                 const passwordField = document.getElementById('password-' + passwordId);
                 const passwordVisibleField = document.getElementById('password-visible-' + passwordId);
                 const toggleIcon = document.getElementById('toggle-' + passwordId);
 
-                // Toggle visibility of the password
+
                 if (passwordField.style.display === 'none') {
                     passwordField.style.display = 'inline-block';
                     passwordVisibleField.style.display = 'none';
@@ -187,6 +192,80 @@ $result = $conn->query("SELECT id, purpose, password FROM passwords WHERE user_i
                 }
             });
         });
+
+        document.getElementById("password").addEventListener("input", function () {
+    const password = this.value;
+    const strengthBar = document.getElementById("strength-bar");
+    const strengthText = document.getElementById("password-strength-text");
+    const crackTimeText = document.getElementById("time-to-crack");
+
+ 
+    const { score, crackTime } = evaluatePassword(password);
+
+   
+    const strengthColors = ["#dc3545", "#ffc107", "#28a745"];
+    const strengthLabels = ["Weak", "Medium", "Strong"];
+    
+    let strengthLevel = 0; 
+    if (score > 50) strengthLevel = 1;
+    if (score > 80) strengthLevel = 2; 
+
+    strengthBar.style.width = `${score}%`;
+    strengthBar.style.backgroundColor = strengthColors[strengthLevel];
+    strengthText.textContent = `Strength: ${strengthLabels[strengthLevel]}`;
+    strengthText.style.color = strengthColors[strengthLevel];
+
+
+    crackTimeText.textContent = `Estimated time to crack: ${crackTime}`;
+});
+
+
+function evaluatePassword(password) {
+    const lengthScore = Math.min(password.length * 10, 50); 
+    const varietyScore = calculateVarietyScore(password); 
+    const score = Math.min(lengthScore + varietyScore, 100); 
+
+
+    const entropy = calculateEntropy(password);
+    const timeToCrack = estimateCrackTime(entropy);
+
+    return { score, crackTime: timeToCrack };
+}
+
+
+function calculateVarietyScore(password) {
+    let variety = 0;
+    if (/[a-z]/.test(password)) variety += 10; 
+    if (/[A-Z]/.test(password)) variety += 10; 
+    if (/[0-9]/.test(password)) variety += 10; 
+    if (/[^a-zA-Z0-9]/.test(password)) variety += 20; 
+    return variety;
+}
+
+
+function calculateEntropy(password) {
+    let charSetSize = 0;
+    if (/[a-z]/.test(password)) charSetSize += 26;
+    if (/[A-Z]/.test(password)) charSetSize += 26;
+    if (/[0-9]/.test(password)) charSetSize += 10;
+    if (/[^a-zA-Z0-9]/.test(password)) charSetSize += 32;
+
+    return Math.log2(charSetSize) * password.length;
+}
+
+
+function estimateCrackTime(entropy) {
+    const guessesPerSecond = 1e9; 
+    const seconds = Math.pow(2, entropy) / guessesPerSecond;
+
+    if (seconds < 60) return `${Math.round(seconds)} seconds`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)} minutes`;
+    if (seconds < 86400) return `${Math.round(seconds / 3600)} hours`;
+    if (seconds < 31536000) return `${Math.round(seconds / 86400)} days`;
+    return `${Math.round(seconds / 31536000)} years`;
+}
+
+
     </script>
 </body>
 </html>

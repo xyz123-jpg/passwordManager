@@ -1,13 +1,13 @@
 <?php
 include 'db.php';
-define('ENCRYPTION_KEY', 'your-secret-key'); // Make sure to store this key securely
+define('ENCRYPTION_KEY', 'your-secret-key');
 
-// Encryption function
+
 function encrypt($data) {
     return openssl_encrypt($data, 'aes-256-cbc', ENCRYPTION_KEY, 0, '1234567890123456');
 }
 
-// Decryption function (for displaying the password)
+
 function decrypt($data) {
     return openssl_decrypt($data, 'aes-256-cbc', ENCRYPTION_KEY, 0, '1234567890123456');
 }
@@ -26,22 +26,22 @@ if (!$password_id) {
     die("Password ID is required");
 }
 
-// Fetch the password details from the database
+
 $stmt = $conn->prepare("SELECT purpose, password FROM passwords WHERE id = ? AND user_id = ?");
 $stmt->bind_param("ii", $password_id, $user_id);
 $stmt->execute();
 $stmt->bind_result($purpose, $password);
 $stmt->fetch();
 
-// Ensure that we free the result set before running another query
+
 $stmt->free_result();
 
-// Handle form submission
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $new_purpose = $_POST["purpose"];
     $new_password = encrypt($_POST["password"]);
 
-    // Update the password in the database
+
     $update_stmt = $conn->prepare("UPDATE passwords SET purpose = ?, password = ? WHERE id = ?");
     $update_stmt->bind_param("ssi", $new_purpose, $new_password, $password_id);
 
@@ -52,7 +52,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         echo "<div class='alert alert-danger text-center'>Error updating password.</div>";
     }
 
-    // Free the result after the update
     $update_stmt->close();
 }
 ?>
@@ -90,7 +89,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <i class="bi bi-eye-slash" id="toggleIcon"></i>
                             </button>
                         </div>
+                        <div class="progress mt-2">
+                            <div id="strength-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <small id="password-strength-text" class="form-text text-muted"></small>
+                        <small id="time-to-crack" class="form-text text-muted"></small>
+
                     </div>
+
+                    
                     
                     <button type="submit" class="btn btn-primary w-100">Update Password</button>
                 </form>
@@ -102,7 +109,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 
-    <!-- Bootstrap Icons CDN for the eye icon -->
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.js"></script>
 
     <script>
@@ -111,11 +118,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         const toggleIcon = document.getElementById('toggleIcon');
 
         togglePassword.addEventListener('click', function (e) {
-            // Toggle the type of password input between 'password' and 'text'
+  
             const type = passwordField.type === 'password' ? 'text' : 'password';
             passwordField.type = type;
 
-            // Toggle the eye icon (show/hide password)
+
             if (type === 'password') {
                 toggleIcon.classList.replace('bi-eye', 'bi-eye-slash');
             } else {
@@ -125,5 +132,77 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById("password").addEventListener("input", function () {
+    const password = this.value;
+    const strengthBar = document.getElementById("strength-bar");
+    const strengthText = document.getElementById("password-strength-text");
+    const crackTimeText = document.getElementById("time-to-crack");
+
+
+    const { score, crackTime } = evaluatePassword(password);
+
+
+    const strengthColors = ["#dc3545", "#ffc107", "#28a745"];
+    const strengthLabels = ["Weak", "Medium", "Strong"];
+    
+    let strengthLevel = 0; 
+    if (score > 50) strengthLevel = 1; 
+    if (score > 80) strengthLevel = 2; 
+
+    strengthBar.style.width = `${score}%`;
+    strengthBar.style.backgroundColor = strengthColors[strengthLevel];
+    strengthText.textContent = `Strength: ${strengthLabels[strengthLevel]}`;
+    strengthText.style.color = strengthColors[strengthLevel];
+
+
+    crackTimeText.textContent = `Estimated time to crack: ${crackTime}`;
+});
+
+function evaluatePassword(password) {
+    const lengthScore = Math.min(password.length * 10, 50); 
+    const varietyScore = calculateVarietyScore(password); 
+    const score = Math.min(lengthScore + varietyScore, 100); 
+
+
+    const entropy = calculateEntropy(password);
+    const timeToCrack = estimateCrackTime(entropy);
+
+    return { score, crackTime: timeToCrack };
+}
+
+function calculateVarietyScore(password) {
+    let variety = 0;
+    if (/[a-z]/.test(password)) variety += 10; 
+    if (/[A-Z]/.test(password)) variety += 10; 
+    if (/[0-9]/.test(password)) variety += 10;
+    if (/[^a-zA-Z0-9]/.test(password)) variety += 20; 
+    return variety;
+}
+
+
+function calculateEntropy(password) {
+    let charSetSize = 0;
+    if (/[a-z]/.test(password)) charSetSize += 26;
+    if (/[A-Z]/.test(password)) charSetSize += 26;
+    if (/[0-9]/.test(password)) charSetSize += 10;
+    if (/[^a-zA-Z0-9]/.test(password)) charSetSize += 32;
+
+    return Math.log2(charSetSize) * password.length;
+}
+
+
+function estimateCrackTime(entropy) {
+    const guessesPerSecond = 1e9;
+    const seconds = Math.pow(2, entropy) / guessesPerSecond;
+
+    if (seconds < 60) return `${Math.round(seconds)} seconds`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)} minutes`;
+    if (seconds < 86400) return `${Math.round(seconds / 3600)} hours`;
+    if (seconds < 31536000) return `${Math.round(seconds / 86400)} days`;
+    return `${Math.round(seconds / 31536000)} years`;
+}
+
+    </script>
 </body>
 </html>
